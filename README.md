@@ -80,7 +80,7 @@ Follow their docs to upload files and go live.
 ## Files included
 - index.html
 - admin.html
-- functions/index.js
+- functions/index.js      
 - logo.svg
 - README.md
 - LICENSE.txt
