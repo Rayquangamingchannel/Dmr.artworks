@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DMR Artworks — Custom Orders</title>
+
+<!-- jsPDF for receipts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Firebase SDKs (compat) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<style>
+:root{
+  --bg:#080808;--panel:#0f0f0f;--text:#e9e6e3;--muted:#bfb8b8;
+  --accent:#ff2b2b;--accent-2:#ffd166;--glass: rgba(255,255,255,0.03);
+  --card-radius:14px;--tax-rate:0.07;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#050505 0%, #0b0b0b 100%);color:var(--text)}
+header{padding:18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.03)}
+.logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent-2),var(--accent));display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b0b0b}
+main{padding:24px;max-width:1100px;margin:18px auto}
+.panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);margin-bottom:12px}
+.btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:10px;border:none;cursor:pointer}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:var(--muted)}
+.small{color:var(--muted);font-size:13px}
+input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);margin-bottom:8px}
+.gallery-img{width:100%;max-width:420px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;gap:12px;align-items:center">
+    <img src="logo.svg" alt="DMR Logo" style="width:64px;height:64px">
+    <div>
+      <div style="font-weight:700">DMR Artworks</div>
+      <div class="small">IG: <a href="https://instagram.com/dark.strokes" target="_blank" style="color:var(--accent)">@dark.strokes</a> • Email: <a href="mailto:daquanrogers235@gmail.com" style="color:var(--muted)">daquanrogers235@gmail.com</a></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <a class="ghost" href="#gallery">Gallery</a>
+    <a class="ghost" href="#order">Order</a>
+    <a class="btn" id="adminLoginBtn">Admin</a>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>🎨 DMR — Custom Art Idea Generator</h2>
+    <p class="small">Handmade pencil drawings, fast custom orders. Works on all devices.</p>
+  </section>
+
+  <section class="panel" id="order">
+    <h3>Place an Order</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px">
+        <label>Category</label>
+        <select id="categorySelect"></select>
+        <div style="margin-top:8px"><button class="btn" id="genIdea">Generate Idea</button> <button class="ghost" id="randomIdeaAgain">New Idea</button></div>
+        <div style="margin-top:10px" id="ideaBox" class="panel">No idea yet.</div>
+      </div>
+
+      <div style="flex:1;min-width:260px">
+        <form id="orderForm">
+          <input id="custName" placeholder="Your name" required />
+          <input id="custContact" placeholder="Email or phone" required />
+          <select id="sizeSelect">
+            <option value="Small">Small — $5</option>
+            <option value="Medium" selected>Medium — $10</option>
+            <option value="Large">Large — $20</option>
+            <option value="Custom">Custom — $30</option>
+          </select>
+          <textarea id="custMessage" placeholder="Custom requests (optional)"></textarea>
+
+          <div style="margin-top:10px">
+            <div>Subtotal: <span id="subtotal">$0.00</span></div>
+            <div>Tax (7%): <span id="tax">$0.00</span></div>
+            <div><strong>Total: <span id="total">$0.00</span></strong></div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--muted)">
+              Cash App: <strong>$QuanRogers8</strong><br>
+              Chime: <strong>$daquan-rogers-10</strong><br>
+              After payment, include TXN ID in message.
+            </div>
+            <button class="ghost" type="submit">Save Order (No Pay)</button>
+            <button class="ghost" id="downloadReceiptBtn" type="button">Download Receipt (PDF)</button>
+          </div>
+        </form>
+
+        <div style="margin-top:12px">
+          <h4>Subscribe</h4>
+          <form id="subscribeForm" action="https://formspree.io/f/YOUR_FORMSPREE_ID" method="POST">
+            <input type="email" name="email" placeholder="Email" required style="width:70%;display:inline-block"/>
+            <button class="btn" type="submit">Subscribe</button>
+          </form>
+          <div class="small" style="margin-top:8px">Or email us: <a href="mailto:daquanrogers235@gmail.com">daquanrogers235@gmail.com</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="gallery">
+    <h3>Gallery & Price List</h3>
+    <p class="small">Price list and sample gallery. Replace these images with your artwork files in the `/assets` folder.</p>
+    <img src="CF29D387-DEBB-4FA5-A2B3-59526B969190.png" alt="price list" class="gallery-img"/>
+  </section>
+
+  <section class="panel">
+    <h4>Contact</h4>
+    <div>Email: <a href="mailto:daquanrogers235@gmail.com">daquanrogers235@gmail.com</a></div>
+    <div>Instagram: <a href="https://instagram.com/dark.strokes" target="_blank">@dark.strokes</a></div>
+    <div>Phone: <a href="tel:+17047566478">704-756-6478</a></div>
+  </section>
+
+</main>
+
+<footer style="padding:12px;text-align:center;color:var(--muted)">© DMR Artworks — IG: <a href="https://instagram.com/dark.strokes">dark.strokes</a> — Email: <a href="mailto:daquanrogers235@gmail.com">daquanrogers235@gmail.com</a></footer>
+
+<script>
+/* ====== FIREBASE CONFIG (PASTE YOUR FIREBASE CONFIG BELOW) ====== */
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_FIREBASE_PROJECT.firebaseapp.com",
+  projectId: "YOUR_FIREBASE_PROJECT",
+  storageBucket: "YOUR_FIREBASE_PROJECT.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+/* ====== App data ====== */
+const categories = [
+  {name:"Portraits & Faces", price:10, ideas:[
+    "A powerful portrait showing raw emotion through the eyes",
+    "A woman with glowing golden tears symbolizing hope",
+    "A stylized self-portrait with abstract background elements",
+    "A half-human, half-angel face design",
+    "A side-profile portrait blending realism with graffiti art"
+  ]},
+  {name:"Fantasy & Mythical Art", price:15, ideas:[
+    "A warrior queen standing in a glowing forest",
+    "A dragon wrapping around a crystal tower at sunset",
+    "A glowing sword in a field of fireflies",
+    "A mythical god emerging from lightning clouds",
+    "A phoenix reborn from ashes with vibrant wings"
+  ]},
+  {name:"Couples & Emotions", price:12, ideas:[
+    "A couple embracing under neon rain lights",
+    "Two lovers drawn in silhouette with a heart skyline",
+    "A heartbreak scene drawn through shattered glass reflection",
+    "A romantic fantasy where one partner has angel wings",
+    "Two souls connected by glowing energy lines"
+  ]},
+  {name:"Pop Culture & Anime", price:8, ideas:[
+    "A streetwear version of your favorite anime character",
+    "A custom anime OC with a unique background power",
+    "A mashup of two different pop culture worlds",
+    "A fanart piece turned into a realistic portrait",
+    "A digital glitch remix of a famous cartoon character"
+  ]},
+  {name:"Pets & Animals", price:7, ideas:[
+    "A dog drawn as a samurai with armor",
+    "A cat surrounded by galaxy colors and stars",
+    "A horse with tribal designs and glowing mane",
+    "A lion with half-human features symbolizing strength",
+    "A bird with feathers transforming into musical notes"
+  ]},
+  {name:"Abstract & Conceptual", price:9, ideas:[
+    "A split world of chaos and calm joined by one figure",
+    "A surreal face made of floating cubes and smoke",
+    "A person dissolving into neon particles",
+    "An abstract concept of 'time' using eyes and clocks",
+    "A digital city bending into a dream landscape"
+  ]}
+];
+
+const TAX_RATE = 0.07;
+
+/* ====== DOM refs ====== */
+const categorySelect = document.getElementById('categorySelect');
+const genIdeaBtn = document.getElementById('genIdea');
+const ideaBox = document.getElementById('ideaBox');
+const orderForm = document.getElementById('orderForm');
+const subtotalEl = document.getElementById('subtotal');
+const taxEl = document.getElementById('tax');
+const totalEl = document.getElementById('total');
+
+let selectedCategory = null;
+let selectedIdea = null;
+
+/* Populate categories */
+categories.forEach((c, idx) => {
+  const opt = document.createElement('option');
+  opt.value = idx;
+  opt.textContent = `${c.name} — $${c.price}`;
+  categorySelect.appendChild(opt);
+});
+categorySelect.addEventListener('change', ()=>{
+  const idx = parseInt(categorySelect.value);
+  selectedCategory = categories[idx];
+  ideaBox.textContent = 'Click "Generate Idea" to pick a random idea.';
+  updateTotals(selectedCategory.price);
+});
+
+/* generate idea */
+genIdeaBtn.addEventListener('click', ()=>{
+  if(!selectedCategory){ alert('Choose a category first'); return; }
+  const arr = selectedCategory.ideas;
+  selectedIdea = arr[Math.floor(Math.random()*arr.length)];
+  ideaBox.textContent = selectedIdea;
+  updateTotals(selectedCategory.price);
+});
+document.getElementById('randomIdeaAgain').addEventListener('click', ()=> {
+  if(!selectedCategory){ alert('Choose a category first'); return; }
+  const arr = selectedCategory.ideas;
+  selectedIdea = arr[Math.floor(Math.random()*arr.length)];
+  ideaBox.textContent = selectedIdea;
+  updateTotals(selectedCategory.price);
+});
+
+/* size price mapping */
+function getPriceForSize(size){
+  if(size === 'Small') return 5;
+  if(size === 'Medium') return 10;
+  if(size === 'Large') return 20;
+  if(size === 'Custom') return 30;
+  return selectedCategory ? selectedCategory.price : 0;
+}
+function updateTotals(){
+  const size = document.getElementById('sizeSelect').value;
+  const price = getPriceForSize(size);
+  const tax = +(price * TAX_RATE).toFixed(2);
+  subtotalEl.textContent = `$${price.toFixed(2)}`;
+  taxEl.textContent = `$${tax.toFixed(2)}`;
+  totalEl.textContent = `$${(price + tax).toFixed(2)}`;
+}
+
+/* submit order to Firestore */
+orderForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const name = document.getElementById('custName').value.trim();
+  const contact = document.getElementById('custContact').value.trim();
+  const size = document.getElementById('sizeSelect').value;
+  const message = document.getElementById('custMessage').value.trim();
+
+  if(!selectedCategory || !selectedIdea){
+    alert('Please select a category and generate an idea first.');
+    return;
+  }
+  const price = getPriceForSize(size);
+  const tax = +(price * TAX_RATE).toFixed(2);
+  const total = +(price + tax).toFixed(2);
+
+  const order = {
+    name, contact, size, message,
+    idea: selectedIdea,
+    category: selectedCategory.name,
+    price, tax, total,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    paid: false,
+    source: 'website'
+  };
+
+  try {
+    const docRef = await db.collection('orders').add(order);
+    // call cloud function to send email (optional; needs deployment)
+    // fetch('/sendOrderEmail', {method:'POST', body: JSON.stringify({orderId: docRef.id})});
+    alert('Order submitted — saved to cloud! We will contact you soon.');
+    orderForm.reset();
+    ideaBox.textContent = 'Order saved. Generate another idea or go to Gallery.';
+  } catch(err){
+    console.error(err);
+    alert('Error saving order. Try again or contact: daquanrogers235@gmail.com');
+  }
+});
+
+/* PDF receipt */
+document.getElementById('downloadReceiptBtn').addEventListener('click', ()=>{
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const name = document.getElementById('custName').value.trim() || 'Customer';
+  const contact = document.getElementById('custContact').value.trim() || '';
+  const size = document.getElementById('sizeSelect').value;
+  const price = getPriceForSize(size);
+  const tax = +(price * TAX_RATE).toFixed(2);
+  const total = +(price + tax).toFixed(2);
+  doc.setFontSize(16);
+  doc.text('DMR Artworks — Receipt', 14, 18);
+  doc.setFontSize(11);
+  doc.text(`Name: ${name}`, 14, 30);
+  doc.text(`Contact: ${contact}`, 14, 36);
+  doc.text(`Idea: ${selectedIdea || '—'}`, 14, 44);
+  doc.text(`Category: ${selectedCategory ? selectedCategory.name : '—'}`, 14, 50);
+  doc.text(`Size: ${size}`, 14, 58);
+  doc.text(`Subtotal: $${price.toFixed(2)}`, 14, 66);
+  doc.text(`Tax (7%): $${tax.toFixed(2)}`, 14, 72);
+  doc.text(`TOTAL: $${total.toFixed(2)}`, 14, 80);
+  doc.save(`DMR_receipt_${Date.now()}.pdf`);
+});
+
+/* admin link */
+document.getElementById('adminLoginBtn').addEventListener('click', ()=> window.location.href='admin.html');
+</script>
+</body>
+</html>

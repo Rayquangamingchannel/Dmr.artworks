@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="800" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <linearGradient id="g1" x1="0" x2="1">
+    <stop offset="0%" stop-color="#ffd166"/>
+    <stop offset="100%" stop-color="#ff2b2b"/>
+  </linearGradient>
+ </defs>
+ <rect width="100%" height="100%" fill="#0b0b0b"/>
+ <g transform="translate(20,20) scale(1.2)">
+  <text x="10" y="60" font-family="Impact, Arial Black, sans-serif" font-size="55" fill="url(#g1)" stroke="#000" stroke-width="2">DMR</text>
+  <path d="M10 90 Q50 120 90 90 T170 90" fill="none" stroke="#ff2b2b" stroke-width="3" opacity="0.6"/>
+  <text x="10" y="110" font-family="Brush Script MT, Brush Script, cursive" font-size="14" fill="#ffd166">dark.strokes</text>
+ </g>
+</svg>

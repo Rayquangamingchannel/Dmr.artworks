@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DMR Admin — Orders</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+body{font-family:Arial;background:#0b0b0b;color:#eee;padding:16px}
+.panel{background:#111;padding:12px;border-radius:8px;margin-bottom:12px}
+.btn{background:#ff2b2b;color:#fff;padding:8px;border-radius:6px;border:none;cursor:pointer}
+.small{color:#bdbdbd;font-size:13px}
+.order{border-bottom:1px dashed rgba(255,255,255,0.04);padding:8px}
+input{padding:8px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<h2>DMR Admin</h2>
+<div id="authArea" class="panel">
+  <div id="signedOut">
+    <h4>Admin Sign In</h4>
+    <input id="adminEmail" placeholder="email"/><br>
+    <input id="adminPass" type="password" placeholder="password"/><br>
+    <button class="btn" id="adminSignIn">Sign In</button>
+    <div class="small" style="margin-top:8px">Create admin users in Firebase Console (Auth → Users).</div>
+  </div>
+
+  <div id="signedIn" style="display:none">
+    <div>Signed in as <span id="adminEmailLabel"></span> <button id="signOutBtn" class="btn" style="background:#444">Sign Out</button></div>
+  </div>
+</div>
+
+<div id="ordersPanel" class="panel" style="display:none">
+  <h3>Orders</h3>
+  <div id="ordersList"></div>
+  <div style="margin-top:8px">
+    <button class="btn" id="exportAll">Export All (JSON)</button>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_FIREBASE_PROJECT.firebaseapp.com",
+  projectId: "YOUR_FIREBASE_PROJECT",
+  storageBucket: "YOUR_FIREBASE_PROJECT.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+const adminSignIn = document.getElementById('adminSignIn');
+const adminEmail = document.getElementById('adminEmail');
+const adminPass = document.getElementById('adminPass');
+const signOutBtn = document.getElementById('signOutBtn');
+const ordersList = document.getElementById('ordersList');
+
+adminSignIn.addEventListener('click', ()=> {
+  const email = adminEmail.value.trim();
+  const pass = adminPass.value;
+  auth.signInWithEmailAndPassword(email, pass).catch(err=> alert(err.message));
+});
+
+signOutBtn.addEventListener('click', ()=> auth.signOut());
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('signedOut').style.display='none';
+    document.getElementById('signedIn').style.display='block';
+    document.getElementById('adminEmailLabel').textContent = user.email;
+    document.getElementById('ordersPanel').style.display='block';
+    loadOrders();
+  } else {
+    document.getElementById('signedOut').style.display='block';
+    document.getElementById('signedIn').style.display='none';
+    document.getElementById('ordersPanel').style.display='none';
+  }
+});
+
+function loadOrders(){
+  db.collection('orders').orderBy('createdAt','desc').onSnapshot(snap=>{
+    ordersList.innerHTML = '';
+    snap.forEach(doc=>{
+      const o = doc.data();
+      const div = document.createElement('div');
+      div.className = 'order';
+      const date = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : '—';
+      div.innerHTML = `<strong>${o.name}</strong> — ${o.idea} <div class="small">${o.contact} • ${o.size} • $${o.total} • ${date}</div>
+        <div style="margin-top:8px">
+          <button class="btn" onclick="markPaid('${doc.id}', ${o.paid ? 'false' : 'true'})">${o.paid ? 'Mark Unpaid' : 'Mark Paid'}</button>
+          <button class="btn" style="background:#444" onclick="deleteOrder('${doc.id}')">Delete</button>
+        </div>`;
+      ordersList.appendChild(div);
+    });
+  });
+}
+
+window.markPaid = async (id, makePaid) => {
+  try { await db.collection('orders').doc(id).update({paid: makePaid}); alert('Order updated.'); }
+  catch(e){ alert('Error: '+e.message); }
+};
+window.deleteOrder = async (id) => {
+  if(!confirm('Delete this order?')) return;
+  try { await db.collection('orders').doc(id).delete(); alert('Deleted.'); }
+  catch(e){ alert('Error: '+e.message); }
+};
+
+document.getElementById('exportAll').addEventListener('click', async ()=>{
+  const snap = await db.collection('orders').orderBy('createdAt','desc').get();
+  const arr = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  const blob = new Blob([JSON.stringify(arr, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'dmr_orders_all.json'; a.click(); a.remove();
+});
+</script>
+</body>
+</html>
